@@ -239,44 +239,165 @@
       transform: translate(-50%, -50%);
       background: rgba(5, 10, 5, 0.95);
       border: 2px solid #39ff14;
-      padding: 30px;
+      padding: 20px;
       border-radius: 8px;
       text-align: center;
       z-index: 1000;
-      min-width: 320px;
+      max-width: 90vw;
+      width: 320px;
+      max-height: 80vh;
+      overflow-y: auto;
       box-shadow: 0 0 40px rgba(57, 255, 20, 0.3);
       display: none;
     }
 
     .settings-menu.active { display: block; }
-    .settings-menu h2 { margin-bottom: 20px; color: #39ff14; }
-    .settings-group { margin: 20px 0; }
-    .settings-group label { display: block; margin: 10px 0; font-size: 12px; color: #39ff14; }
-    .skin-option { display: inline-block; margin: 5px; cursor: pointer; }
-    .skin-preview {
-      width: 30px;
-      height: 30px;
-      border: 2px solid #39ff14;
+    .settings-menu h2 { margin-bottom: 15px; color: #39ff14; font-size: 14px; }
+    .settings-group { margin: 12px 0; }
+    .settings-group label { display: block; margin-bottom: 8px; font-size: 11px; color: #39ff14; letter-spacing: 1px; }
+    
+    /* DIFFICULTY BUTTONS */
+    .difficulty-selector {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .difficulty-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      background: transparent;
+      color: #39ff14;
+      border: 1px solid #39ff14;
+      padding: 6px 10px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.15s;
+      flex: 1;
+      max-width: 80px;
+    }
+
+    .difficulty-btn:hover { box-shadow: 0 0 8px rgba(57, 255, 20, 0.5); }
+    .difficulty-btn.active { background: #39ff14; color: #050a05; box-shadow: 0 0 12px rgba(57, 255, 20, 0.8); }
+
+    /* SKIN OPTIONS GRID - SIMPLIFIED */
+    .skin-options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+      gap: 8px;
+      margin: 10px 0;
+    }
+
+    .skin-option {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px;
+      background: rgba(57, 255, 20, 0.05);
+      border: 1px solid rgba(57, 255, 20, 0.3);
       border-radius: 4px;
       cursor: pointer;
       transition: all 0.2s;
     }
-    .skin-preview:hover { box-shadow: 0 0 10px rgba(57, 255, 20, 0.8); }
-    .skin-preview.active { border-color: #ffdd00; box-shadow: 0 0 15px #ffdd00; }
+
+    .skin-option:hover {
+      background: rgba(57, 255, 20, 0.15);
+      border-color: rgba(57, 255, 20, 0.6);
+    }
+
+    .skin-option.selected {
+      background: rgba(255, 221, 0, 0.2);
+      border-color: #ffdd00;
+    }
+
+    .skin-option-emoji {
+      font-size: 18px;
+    }
+
+    .skin-option-name {
+      font-size: 8px;
+      color: #39ff14;
+      font-family: 'Share Tech Mono', monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* TOGGLE BUTTONS */
     .toggle-btn {
       font-family: 'Press Start 2P', monospace;
-      font-size: 10px;
+      font-size: 9px;
+      background: transparent;
+      color: #39ff14;
+      border: 1px solid #39ff14;
+      padding: 6px 12px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: all 0.15s;
+      min-width: 70px;
+    }
+    .toggle-btn:hover { box-shadow: 0 0 8px rgba(57, 255, 20, 0.5); }
+    .toggle-btn.active { background: #39ff14; color: #050a05; }
+
+    /* SETTINGS CLOSE BUTTON */
+    .settings-close-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
       background: transparent;
       color: #39ff14;
       border: 1px solid #39ff14;
       padding: 8px 16px;
-      margin: 5px;
       cursor: pointer;
       letter-spacing: 1px;
       transition: all 0.15s;
+      margin-top: 12px;
+      width: 100%;
     }
-    .toggle-btn:hover { background: #39ff14; color: #050a05; }
-    .toggle-btn.active { background: #39ff14; color: #050a05; }
+
+    .settings-close-btn:hover {
+      background: #39ff14;
+      color: #050a05;
+      text-shadow: none;
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.8);
+    }
+
+    /* RESPONSIVE MOBILE */
+    @media (max-width: 480px) {
+      .settings-menu {
+        width: 85vw;
+        padding: 15px;
+      }
+
+      .settings-menu h2 {
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+
+      .difficulty-btn {
+        font-size: 7px;
+        padding: 5px 8px;
+      }
+
+      .toggle-btn {
+        font-size: 8px;
+        padding: 5px 10px;
+        min-width: 60px;
+      }
+
+      .skin-options-grid {
+        grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+        gap: 6px;
+      }
+
+      .skin-option-emoji {
+        font-size: 16px;
+      }
+
+      .settings-close-btn {
+        font-size: 8px;
+        padding: 6px 12px;
+      }
+    }
 
     /* ANIMATED BACKGROUND */
     #stars-canvas {
@@ -401,14 +522,14 @@
         <label>DIFFICULTY</label>
         <div class="difficulty-selector">
           <button class="difficulty-btn active" onclick="setDifficulty('easy')">EASY</button>
-          <button class="difficulty-btn" onclick="setDifficulty('normal')">NORMAL</button>
+          <button class="difficulty-btn" onclick="setDifficulty('normal')">NORM</button>
           <button class="difficulty-btn" onclick="setDifficulty('hard')">HARD</button>
         </div>
       </div>
 
       <div class="settings-group">
         <label>SNAKE SKIN</label>
-        <div id="skin-options"></div>
+        <div class="skin-options-grid" id="skin-options-grid"></div>
       </div>
 
       <div class="settings-group">
@@ -416,17 +537,7 @@
         <button class="toggle-btn" id="sound-toggle" onclick="toggleSound()">ON</button>
       </div>
 
-      <div class="settings-group">
-        <label>PARTICLES</label>
-        <button class="toggle-btn" id="particles-toggle" onclick="toggleParticles()">ON</button>
-      </div>
-
-      <div class="settings-group">
-        <label>BACKGROUND</label>
-        <button class="toggle-btn" id="bg-toggle" onclick="toggleBackground()">ON</button>
-      </div>
-
-      <button class="btn" onclick="hideSettings()">BACK</button>
+      <button class="settings-close-btn" onclick="hideSettings()">BACK</button>
     </div>
 
     <!-- Pause Overlay -->
@@ -502,10 +613,10 @@ const LEVEL_EVERY = 5;
 //  SETTINGS STATE
 // ─────────────────────────────────────────────
 const SKINS = {
-  classic: { head: '#39ff14', body: '#1fb80d', name: 'Classic' },
-  neon:    { head: '#ff00ff', body: '#8b008b', name: 'Neon' },
-  electric:{ head: '#00ffff', body: '#0088ff', name: 'Electric' },
-  sunset:  { head: '#ffaa00', body: '#ff6600', name: 'Sunset' },
+  classic: { head: '#39ff14', body: '#1fb80d', name: 'Classic Green', emoji: '🐢', desc: 'Retro 80s style' },
+  neon:    { head: '#ff00ff', body: '#8b008b', name: 'Neon Magenta', emoji: '💜', desc: 'Electric vibes' },
+  electric:{ head: '#00ffff', body: '#0088ff', name: 'Electric Blue', emoji: '⚡', desc: 'High voltage' },
+  sunset:  { head: '#ffaa00', body: '#ff6600', name: 'Sunset Fire', emoji: '🔥', desc: 'Warm and smooth' },
 };
 
 // DIFFICULTY SETTINGS
@@ -999,8 +1110,20 @@ function gameOver() {
 }
 
 // ─────────────────────────────────────────────
-//  SETTINGS UI
+//  SKIN PREVIEW ANIMATION
 // ─────────────────────────────────────────────
+function updateSkinDisplay(skinName) {
+  // Just update the grid - no canvas preview needed
+  const skinsHtml = Object.entries(SKINS).map(([key, skin]) => `
+    <div class="skin-option ${settings.skin === key ? 'selected' : ''}" 
+         onclick="selectSkin('${key}')" 
+         title="${skin.name}">
+      <div class="skin-option-emoji">${skin.emoji}</div>
+      <div class="skin-option-name">${skin.name.split(' ')[0]}</div>
+    </div>
+  `).join('');
+  document.getElementById('skin-options-grid').innerHTML = skinsHtml;
+}
 function showSettings() {
   document.getElementById('settings-menu').classList.add('active');
   running = false;
@@ -1030,22 +1153,6 @@ function toggleSound() {
   btn.classList.toggle('active');
 }
 
-function toggleParticles() {
-  settings.particlesEnabled = !settings.particlesEnabled;
-  saveSettings();
-  const btn = document.getElementById('particles-toggle');
-  btn.textContent = settings.particlesEnabled ? 'ON' : 'OFF';
-  btn.classList.toggle('active');
-}
-
-function toggleBackground() {
-  settings.backgroundEnabled = !settings.backgroundEnabled;
-  saveSettings();
-  const btn = document.getElementById('bg-toggle');
-  btn.textContent = settings.backgroundEnabled ? 'ON' : 'OFF';
-  btn.classList.toggle('active');
-}
-
 function selectSkin(skinName) {
   settings.skin = skinName;
   saveSettings();
@@ -1055,7 +1162,7 @@ function selectSkin(skinName) {
 function updateSettingsUI() {
   // Update difficulty buttons
   document.querySelectorAll('.difficulty-btn').forEach(btn => {
-    const difficulty = btn.textContent.toLowerCase();
+    const difficulty = btn.textContent.toLowerCase().replace('norm', 'normal');
     if (difficulty === settings.difficulty) {
       btn.classList.add('active');
     } else {
@@ -1063,24 +1170,12 @@ function updateSettingsUI() {
     }
   });
 
-  // Update skin previews
-  const skinsHtml = Object.entries(SKINS).map(([key, skin]) => `
-    <div class="skin-option">
-      <div class="skin-preview ${settings.skin === key ? 'active' : ''}" 
-           style="background: ${skin.head};" 
-           onclick="selectSkin('${key}')" 
-           title="${skin.name}"></div>
-    </div>
-  `).join('');
-  document.getElementById('skin-options').innerHTML = skinsHtml;
+  // Update skin display
+  updateSkinDisplay(settings.skin);
 
-  // Update toggles
+  // Update sound toggle
   document.getElementById('sound-toggle').textContent = settings.soundEnabled ? 'ON' : 'OFF';
   document.getElementById('sound-toggle').classList.toggle('active', settings.soundEnabled);
-  document.getElementById('particles-toggle').textContent = settings.particlesEnabled ? 'ON' : 'OFF';
-  document.getElementById('particles-toggle').classList.toggle('active', settings.particlesEnabled);
-  document.getElementById('bg-toggle').textContent = settings.backgroundEnabled ? 'ON' : 'OFF';
-  document.getElementById('bg-toggle').classList.toggle('active', settings.backgroundEnabled);
 }
 
 // ─────────────────────────────────────────────
@@ -1185,6 +1280,7 @@ updateHUD();
 updateSettingsUI();
 draw();
 
+// Keep food pulsing even on start screen
 setInterval(() => { if (!running) draw(); }, 100);
 </script>
 </body>
