@@ -285,6 +285,81 @@
       left: 0;
       z-index: 1;
     }
+
+    /* STATS DISPLAY */
+    .stats-panel {
+      background: rgba(5, 10, 5, 0.92);
+      border: 2px solid #39ff14;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 15px 0;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: #39ff14;
+      line-height: 2;
+      text-shadow: 0 0 5px rgba(57, 255, 20, 0.3);
+      min-width: 280px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(57, 255, 20, 0.2);
+    }
+
+    .stats-row:last-child {
+      border-bottom: none;
+    }
+
+    .stats-label { color: #2a9a10; }
+    .stats-value { color: #ffdd00; font-weight: bold; }
+
+    /* PAUSE OVERLAY */
+    #overlay-pause {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 10, 5, 0.9);
+      gap: 20px;
+      transition: opacity 0.3s;
+      z-index: 500;
+    }
+
+    #overlay-pause.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .difficulty-selector {
+      display: flex;
+      gap: 10px;
+    }
+
+    .difficulty-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      background: transparent;
+      color: #39ff14;
+      border: 1px solid #39ff14;
+      padding: 10px 15px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+    }
+
+    .difficulty-btn:hover {
+      box-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+    }
+
+    .difficulty-btn.active {
+      background: #39ff14;
+      color: #050a05;
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.8);
+    }
   </style>
 </head>
 <body>
@@ -323,6 +398,15 @@
       <h2>SETTINGS</h2>
       
       <div class="settings-group">
+        <label>DIFFICULTY</label>
+        <div class="difficulty-selector">
+          <button class="difficulty-btn active" onclick="setDifficulty('easy')">EASY</button>
+          <button class="difficulty-btn" onclick="setDifficulty('normal')">NORMAL</button>
+          <button class="difficulty-btn" onclick="setDifficulty('hard')">HARD</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
         <label>SNAKE SKIN</label>
         <div id="skin-options"></div>
       </div>
@@ -345,10 +429,45 @@
       <button class="btn" onclick="hideSettings()">BACK</button>
     </div>
 
+    <!-- Pause Overlay -->
+    <div class="overlay hidden" id="overlay-pause">
+      <div class="overlay-title">PAUSED</div>
+      <div class="stats-panel">
+        <div class="stats-row">
+          <span class="stats-label">CURRENT SCORE:</span>
+          <span class="stats-value" id="pause-score">0</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">LEVEL:</span>
+          <span class="stats-value" id="pause-level">1</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">COMBO:</span>
+          <span class="stats-value" id="pause-combo">0x</span>
+        </div>
+      </div>
+      <button class="btn" onclick="pauseGame()">RESUME</button>
+      <button class="btn" onclick="startGame()">NEW GAME</button>
+    </div>
+
     <!-- Game Over Overlay -->
     <div class="overlay hidden" id="overlay-gameover">
       <div class="overlay-title">GAME<br>OVER</div>
       <div class="overlay-score" id="go-score"></div>
+      <div class="stats-panel">
+        <div class="stats-row">
+          <span class="stats-label">GAMES PLAYED:</span>
+          <span class="stats-value" id="stats-games">0</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">AVERAGE SCORE:</span>
+          <span class="stats-value" id="stats-avg">0</span>
+        </div>
+        <div class="stats-row">
+          <span class="stats-label">BEST STREAK:</span>
+          <span class="stats-value" id="stats-streak">0</span>
+        </div>
+      </div>
       <button class="btn" onclick="showSettings()">⚙ SETTINGS</button>
       <button class="btn" onclick="startGame()">TRY AGAIN</button>
     </div>
@@ -389,22 +508,65 @@ const SKINS = {
   sunset:  { head: '#ffaa00', body: '#ff6600', name: 'Sunset' },
 };
 
+// DIFFICULTY SETTINGS
+const DIFFICULTY = {
+  easy:   { speed: 200, label: 'EASY' },
+  normal: { speed: 150, label: 'NORMAL' },
+  hard:   { speed: 100, label: 'HARD' },
+};
+
 let settings = {
   skin: 'classic',
   soundEnabled: true,
   particlesEnabled: true,
   backgroundEnabled: true,
+  difficulty: 'normal',
 };
 
-// Load settings from localStorage
+// STATISTICS TRACKING
+let stats = {
+  gamesPlayed: 0,
+  totalScore: 0,
+  bestScore: 0,
+  bestStreak: 0,
+  currentStreak: 0,
+};
+
+// Load settings and stats from localStorage
 function loadSettings() {
   const saved = localStorage.getItem('snake_settings');
   if (saved) settings = { ...settings, ...JSON.parse(saved) };
+  
+  const savedStats = localStorage.getItem('snake_stats');
+  if (savedStats) stats = { ...stats, ...JSON.parse(savedStats) };
 }
 
 function saveSettings() {
   localStorage.setItem('snake_settings', JSON.stringify(settings));
   updateSettingsUI();
+}
+
+function saveStats() {
+  localStorage.setItem('snake_stats', JSON.stringify(stats));
+}
+
+function recordGame(finalScore) {
+  stats.gamesPlayed++;
+  stats.totalScore += finalScore;
+  if (finalScore > stats.bestScore) {
+    stats.bestScore = finalScore;
+    stats.currentStreak = 1;
+  } else {
+    stats.currentStreak = 0;
+  }
+  if (stats.currentStreak > stats.bestStreak) {
+    stats.bestStreak = stats.currentStreak;
+  }
+  saveStats();
+}
+
+function getAverageScore() {
+  return stats.gamesPlayed === 0 ? 0 : Math.round(stats.totalScore / stats.gamesPlayed);
 }
 
 loadSettings();
@@ -613,7 +775,8 @@ function loop() {
     tick();
     updateCombo();
   }
-  const speed = Math.max(60, BASE_SPEED - (level - 1) * SPEED_STEP);
+  const baseSpeed = DIFFICULTY[settings.difficulty].speed;
+  const speed = Math.max(60, baseSpeed - (level - 1) * SPEED_STEP);
   loopTimer = setTimeout(loop, speed);
 }
 
@@ -818,12 +981,20 @@ function gameOver() {
   clearTimeout(bonusTimer);
   playGameOverSound();
 
+  recordGame(score);
+
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const el = document.getElementById('overlay-gameover');
   document.getElementById('go-score').innerHTML =
     `SCORE&nbsp;&nbsp;${score}<br>BEST&nbsp;&nbsp;&nbsp;${hiScore}`;
+  
+  // Update stats display
+  document.getElementById('stats-games').textContent = stats.gamesPlayed;
+  document.getElementById('stats-avg').textContent = getAverageScore();
+  document.getElementById('stats-streak').textContent = stats.bestStreak;
+  
   el.classList.remove('hidden');
 }
 
@@ -839,6 +1010,16 @@ function showSettings() {
 function hideSettings() {
   document.getElementById('settings-menu').classList.remove('active');
   if (running) paused = false;
+}
+
+function setDifficulty(difficulty) {
+  settings.difficulty = difficulty;
+  saveSettings();
+  // Update button states
+  document.querySelectorAll('.difficulty-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
 }
 
 function toggleSound() {
@@ -872,6 +1053,16 @@ function selectSkin(skinName) {
 }
 
 function updateSettingsUI() {
+  // Update difficulty buttons
+  document.querySelectorAll('.difficulty-btn').forEach(btn => {
+    const difficulty = btn.textContent.toLowerCase();
+    if (difficulty === settings.difficulty) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
   // Update skin previews
   const skinsHtml = Object.entries(SKINS).map(([key, skin]) => `
     <div class="skin-option">
@@ -893,6 +1084,22 @@ function updateSettingsUI() {
 }
 
 // ─────────────────────────────────────────────
+//  PAUSE FUNCTION
+// ─────────────────────────────────────────────
+function pauseGame() {
+  paused = !paused;
+  const pauseOverlay = document.getElementById('overlay-pause');
+  if (paused) {
+    document.getElementById('pause-score').textContent = score;
+    document.getElementById('pause-level').textContent = level;
+    document.getElementById('pause-combo').textContent = combo + 'x';
+    pauseOverlay.classList.remove('hidden');
+  } else {
+    pauseOverlay.classList.add('hidden');
+  }
+}
+
+// ─────────────────────────────────────────────
 //  INPUT
 // ─────────────────────────────────────────────
 const KEY_MAP = {
@@ -902,7 +1109,43 @@ const KEY_MAP = {
   ArrowRight: {x:  1, y:  0}, d: {x:  1, y:  0}, D: {x:  1, y:  0},
 };
 
+// Mobile swipe detection
+let touchStartX = 0;
+let touchStartY = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, false);
+
+canvas.addEventListener('touchend', (e) => {
+  if (!running) return;
+  const touchEndX = e.changedTouches[0].clientX;
+  const touchEndY = e.changedTouches[0].clientY;
+  
+  const dx = touchEndX - touchStartX;
+  const dy = touchEndY - touchStartY;
+  const threshold = 30;
+  
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal swipe
+    if (dx > threshold) {
+      nextDir = {x: 1, y: 0}; // Right
+    } else if (dx < -threshold) {
+      nextDir = {x: -1, y: 0}; // Left
+    }
+  } else {
+    // Vertical swipe
+    if (dy > threshold) {
+      nextDir = {x: 0, y: 1}; // Down
+    } else if (dy < -threshold) {
+      nextDir = {x: 0, y: -1}; // Up
+    }
+  }
+}, false);
+
 document.addEventListener('keydown', e => {
+  // ESC for settings
   if (e.key === 'Escape') {
     if (document.getElementById('settings-menu').classList.contains('active')) {
       hideSettings();
@@ -911,10 +1154,20 @@ document.addEventListener('keydown', e => {
     }
     return;
   }
+
+  // P for pause
   if ((e.key === 'p' || e.key === 'P') && running) {
-    paused = !paused;
+    pauseGame();
     return;
   }
+
+  // Space/Enter for restart on game over
+  if ((e.key === ' ' || e.key === 'Enter') && !running) {
+    startGame();
+    return;
+  }
+
+  // Movement keys
   const d = KEY_MAP[e.key];
   if (!d) return;
   if (d.x !== 0 && d.x === -dir.x) return;
