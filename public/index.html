@@ -212,6 +212,79 @@
       font-size: 7px;
       color: var(--green-dim);
     }
+
+    /* COMBO COUNTER */
+    .combo-counter {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 12px;
+      color: #ffdd00;
+      text-shadow: 0 0 10px #ffdd00;
+      opacity: 0;
+      pointer-events: none;
+      animation: comboPop 0.5s ease-out;
+    }
+
+    @keyframes comboPop {
+      0% { opacity: 1; transform: scale(0.5) translateY(0); }
+      100% { opacity: 0; transform: scale(1) translateY(-40px); }
+    }
+
+    /* SETTINGS MENU */
+    .settings-menu {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(5, 10, 5, 0.95);
+      border: 2px solid #39ff14;
+      padding: 30px;
+      border-radius: 8px;
+      text-align: center;
+      z-index: 1000;
+      min-width: 320px;
+      box-shadow: 0 0 40px rgba(57, 255, 20, 0.3);
+      display: none;
+    }
+
+    .settings-menu.active { display: block; }
+    .settings-menu h2 { margin-bottom: 20px; color: #39ff14; }
+    .settings-group { margin: 20px 0; }
+    .settings-group label { display: block; margin: 10px 0; font-size: 12px; color: #39ff14; }
+    .skin-option { display: inline-block; margin: 5px; cursor: pointer; }
+    .skin-preview {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #39ff14;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .skin-preview:hover { box-shadow: 0 0 10px rgba(57, 255, 20, 0.8); }
+    .skin-preview.active { border-color: #ffdd00; box-shadow: 0 0 15px #ffdd00; }
+    .toggle-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      background: transparent;
+      color: #39ff14;
+      border: 1px solid #39ff14;
+      padding: 8px 16px;
+      margin: 5px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: all 0.15s;
+    }
+    .toggle-btn:hover { background: #39ff14; color: #050a05; }
+    .toggle-btn.active { background: #39ff14; color: #050a05; }
+
+    /* ANIMATED BACKGROUND */
+    #stars-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
@@ -226,9 +299,11 @@
     HIGH SCORE <span id="hi-display">0</span>
     &nbsp;&nbsp;&nbsp;
     LEVEL <span id="level-display">1</span>
+    &nbsp;&nbsp;&nbsp;
+    COMBO <span id="combo-display">0</span>x
   </div>
 
-  <div class="frame">
+  <div class="frame" id="game-frame">
     <canvas id="canvas"></canvas>
 
     <!-- Start Overlay -->
@@ -239,13 +314,42 @@
         OR W A S D<br>
         TO MOVE
       </div>
+      <button class="btn" onclick="showSettings()">⚙ SETTINGS</button>
       <button class="btn" onclick="startGame()">PRESS START</button>
+    </div>
+
+    <!-- Settings Menu -->
+    <div class="settings-menu" id="settings-menu">
+      <h2>SETTINGS</h2>
+      
+      <div class="settings-group">
+        <label>SNAKE SKIN</label>
+        <div id="skin-options"></div>
+      </div>
+
+      <div class="settings-group">
+        <label>SOUND</label>
+        <button class="toggle-btn" id="sound-toggle" onclick="toggleSound()">ON</button>
+      </div>
+
+      <div class="settings-group">
+        <label>PARTICLES</label>
+        <button class="toggle-btn" id="particles-toggle" onclick="toggleParticles()">ON</button>
+      </div>
+
+      <div class="settings-group">
+        <label>BACKGROUND</label>
+        <button class="toggle-btn" id="bg-toggle" onclick="toggleBackground()">ON</button>
+      </div>
+
+      <button class="btn" onclick="hideSettings()">BACK</button>
     </div>
 
     <!-- Game Over Overlay -->
     <div class="overlay hidden" id="overlay-gameover">
       <div class="overlay-title">GAME<br>OVER</div>
       <div class="overlay-score" id="go-score"></div>
+      <button class="btn" onclick="showSettings()">⚙ SETTINGS</button>
       <button class="btn" onclick="startGame()">TRY AGAIN</button>
     </div>
 
@@ -255,43 +359,191 @@
   <div class="controls">
     <span><kbd>↑↓←→</kbd> or <kbd>WASD</kbd> move</span>
     <span><kbd>P</kbd> pause</span>
+    <span><kbd>ESC</kbd> settings</span>
   </div>
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════
+//  ENHANCED SNAKE GAME v2.0
+//  Features: Skins, Sound, Particles, Combo, Screen Shake
+// ═══════════════════════════════════════════════════════════
+
 // ─────────────────────────────────────────────
 //  CONFIG
 // ─────────────────────────────────────────────
 const COLS = 24;
 const ROWS = 24;
-const CELL = 20;           // px per cell
-const BASE_SPEED = 150;    // ms per tick at level 1
-const SPEED_STEP = 10;     // ms faster per level
-const LEVEL_EVERY = 5;     // points per level-up
+const CELL = 20;
+const BASE_SPEED = 150;
+const SPEED_STEP = 10;
+const LEVEL_EVERY = 5;
+
+// ─────────────────────────────────────────────
+//  SETTINGS STATE
+// ─────────────────────────────────────────────
+const SKINS = {
+  classic: { head: '#39ff14', body: '#1fb80d', name: 'Classic' },
+  neon:    { head: '#ff00ff', body: '#8b008b', name: 'Neon' },
+  electric:{ head: '#00ffff', body: '#0088ff', name: 'Electric' },
+  sunset:  { head: '#ffaa00', body: '#ff6600', name: 'Sunset' },
+};
+
+let settings = {
+  skin: 'classic',
+  soundEnabled: true,
+  particlesEnabled: true,
+  backgroundEnabled: true,
+};
+
+// Load settings from localStorage
+function loadSettings() {
+  const saved = localStorage.getItem('snake_settings');
+  if (saved) settings = { ...settings, ...JSON.parse(saved) };
+}
+
+function saveSettings() {
+  localStorage.setItem('snake_settings', JSON.stringify(settings));
+  updateSettingsUI();
+}
+
+loadSettings();
+
+// ─────────────────────────────────────────────
+//  SOUND SYSTEM (Web Audio API)
+// ─────────────────────────────────────────────
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+function playSound(freq, duration, type = 'sine') {
+  if (!settings.soundEnabled) return;
+  const now = audioContext.currentTime;
+  const osc = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
+  osc.frequency.value = freq;
+  osc.type = type;
+  gain.gain.setValueAtTime(0.3, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function playEatSound() {
+  playSound(800, 0.1);
+  playSound(1000, 0.1, 'sine');
+}
+
+function playLevelUpSound() {
+  playSound(500, 0.15);
+  setTimeout(() => playSound(800, 0.15), 100);
+}
+
+function playGameOverSound() {
+  playSound(400, 0.3);
+  setTimeout(() => playSound(300, 0.3), 150);
+}
+
+function playBonusSound() {
+  playSound(1200, 0.1);
+  playSound(1500, 0.1);
+}
+
+// ─────────────────────────────────────────────
+//  PARTICLE SYSTEM
+// ─────────────────────────────────────────────
+let particles = [];
+
+class Particle {
+  constructor(x, y, vx, vy, color) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.color = color;
+    this.life = 1;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.2; // gravity
+    this.life -= 0.03;
+  }
+
+  draw(ctx) {
+    ctx.fillStyle = this.color;
+    ctx.globalAlpha = this.life;
+    ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function spawnParticles(x, y, color, count = 8) {
+  if (!settings.particlesEnabled) return;
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count;
+    const speed = 2 + Math.random() * 2;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+    particles.push(new Particle(x, y, vx, vy, color));
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].update();
+    if (particles[i].life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ─────────────────────────────────────────────
+//  SCREEN SHAKE
+// ─────────────────────────────────────────────
+let shakeAmount = 0;
+
+function shake(amount) {
+  shakeAmount = amount;
+}
+
+// ─────────────────────────────────────────────
+//  COMBO SYSTEM
+// ─────────────────────────────────────────────
+let combo = 0;
+let lastFoodTime = 0;
+
+function updateCombo() {
+  const now = Date.now();
+  if (now - lastFoodTime > 3000) {
+    combo = 0;
+  }
+}
+
+function addCombo() {
+  combo++;
+  lastFoodTime = Date.now();
+  if (combo > 1) {
+    showComboNotif(combo);
+  }
+}
+
+function showComboNotif(count) {
+  if (!settings.soundEnabled) return;
+  const notif = document.createElement('div');
+  notif.className = 'combo-counter';
+  notif.textContent = `${count}x COMBO!`;
+  notif.style.color = `hsl(${count * 30}, 100%, 50%)`;
+  document.getElementById('game-frame').appendChild(notif);
+  setTimeout(() => notif.remove(), 500);
+}
 
 // ─────────────────────────────────────────────
 //  CANVAS SETUP
 // ─────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
-const ctx    = canvas.getContext('2d');
-canvas.width  = COLS * CELL;
+const ctx = canvas.getContext('2d');
+canvas.width = COLS * CELL;
 canvas.height = ROWS * CELL;
-
-// ─────────────────────────────────────────────
-//  COLORS
-// ─────────────────────────────────────────────
-const C = {
-  bg:       '#050a05',
-  grid:     '#0a160a',
-  snakeH:   '#39ff14',
-  snakeB:   '#1fb80d',
-  snakeGlow:'rgba(57,255,20,0.5)',
-  food:     '#ff4444',
-  foodGlow: 'rgba(255,68,68,0.7)',
-  bonus:    '#ffdd00',
-  bonusGlow:'rgba(255,220,0,0.7)',
-  text:     '#39ff14',
-};
 
 // ─────────────────────────────────────────────
 //  STATE
@@ -301,20 +553,19 @@ let snake, dir, nextDir, food, bonus, score, hiScore, level, running, paused, lo
 function freshState() {
   const cx = Math.floor(COLS / 2);
   const cy = Math.floor(ROWS / 2);
-  snake   = [{x: cx, y: cy}, {x: cx-1, y: cy}, {x: cx-2, y: cy}];
-  dir     = {x: 1, y: 0};
+  snake = [{x: cx, y: cy}, {x: cx-1, y: cy}, {x: cx-2, y: cy}];
+  dir = {x: 1, y: 0};
   nextDir = {x: 1, y: 0};
-  food    = spawnFood();
-  bonus   = null;
-  score   = 0;
-  level   = 1;
+  food = spawnFood();
+  bonus = null;
+  score = 0;
+  level = 1;
   running = false;
-  paused  = false;
+  paused = false;
+  combo = 0;
+  shakeAmount = 0;
 }
 
-// ─────────────────────────────────────────────
-//  FOOD
-// ─────────────────────────────────────────────
 function spawnFood() {
   let pos;
   do {
@@ -329,7 +580,6 @@ function maybeSpawnBonus() {
     do {
       bonus = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
     } while (onSnake(bonus) || (bonus.x === food.x && bonus.y === food.y));
-    // bonus disappears after 5 seconds
     bonusTimer = setTimeout(() => { bonus = null; }, 5000);
   }
 }
@@ -351,6 +601,7 @@ function startGame() {
 
   document.getElementById('overlay-start').classList.add('hidden');
   document.getElementById('overlay-gameover').classList.add('hidden');
+  document.getElementById('settings-menu').classList.remove('active');
 
   running = true;
   loop();
@@ -358,7 +609,10 @@ function startGame() {
 
 function loop() {
   if (!running) return;
-  if (!paused) tick();
+  if (!paused) {
+    tick();
+    updateCombo();
+  }
   const speed = Math.max(60, BASE_SPEED - (level - 1) * SPEED_STEP);
   loopTimer = setTimeout(loop, speed);
 }
@@ -368,27 +622,31 @@ function tick() {
 
   const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
-  // wall collision
   if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
     return gameOver();
   }
-  // self collision
   if (snake.some(s => s.x === head.x && s.y === head.y)) {
     return gameOver();
   }
 
   snake.unshift(head);
 
-  // eat food?
   if (head.x === food.x && head.y === food.y) {
     score++;
+    addCombo();
     level = Math.floor(score / LEVEL_EVERY) + 1;
+    const skinColor = SKINS[settings.skin].head;
+    spawnParticles(head.x * CELL + CELL/2, head.y * CELL + CELL/2, skinColor, 12);
+    playEatSound();
     food = spawnFood();
     maybeSpawnBonus();
     flashFood();
   } else if (bonus && head.x === bonus.x && head.y === bonus.y) {
     score += 3;
+    addCombo();
     level = Math.floor(score / LEVEL_EVERY) + 1;
+    shake(5);
+    playBonusSound();
     bonus = null;
     clearTimeout(bonusTimer);
   } else {
@@ -404,9 +662,6 @@ function tick() {
   draw();
 }
 
-// ─────────────────────────────────────────────
-//  FLASH EFFECT
-// ─────────────────────────────────────────────
 let foodFlash = 0;
 function flashFood() { foodFlash = 6; }
 
@@ -414,12 +669,21 @@ function flashFood() { foodFlash = 6; }
 //  DRAW
 // ─────────────────────────────────────────────
 function draw() {
+  // Apply screen shake
+  ctx.save();
+  if (shakeAmount > 0) {
+    const shakeX = (Math.random() - 0.5) * shakeAmount;
+    const shakeY = (Math.random() - 0.5) * shakeAmount;
+    ctx.translate(shakeX, shakeY);
+    shakeAmount *= 0.9;
+  }
+
   // background
-  ctx.fillStyle = C.bg;
+  ctx.fillStyle = '#050a05';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // grid
-  ctx.strokeStyle = C.grid;
+  ctx.strokeStyle = '#0a160a';
   ctx.lineWidth = 0.5;
   for (let x = 0; x <= COLS; x++) {
     ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, canvas.height); ctx.stroke();
@@ -428,21 +692,23 @@ function draw() {
     ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(canvas.width, y * CELL); ctx.stroke();
   }
 
+  // Draw particles
+  updateParticles();
+  particles.forEach(p => p.draw(ctx));
+
   // bonus food
   if (bonus) {
     const bx = bonus.x * CELL + CELL / 2;
     const by = bonus.y * CELL + CELL / 2;
-    ctx.shadowColor = C.bonusGlow;
-    ctx.shadowBlur  = 14;
-    ctx.fillStyle   = C.bonus;
+    ctx.shadowColor = 'rgba(255,220,0,0.7)';
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = '#ffdd00';
     drawDiamond(bx, by, CELL * 0.38);
-    ctx.shadowBlur  = 0;
-
-    // pulsing ring
+    ctx.shadowBlur = 0;
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 200);
-    ctx.strokeStyle = C.bonus;
+    ctx.strokeStyle = '#ffdd00';
     ctx.globalAlpha = pulse * 0.6;
-    ctx.lineWidth   = 1;
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(bx, by, CELL * 0.55, 0, Math.PI * 2);
     ctx.stroke();
@@ -454,58 +720,58 @@ function draw() {
   const fy = food.y * CELL + CELL / 2;
   const fRadius = foodFlash > 0 ? CELL * 0.42 : CELL * 0.36;
   if (foodFlash > 0) foodFlash--;
-  ctx.shadowColor = C.foodGlow;
-  ctx.shadowBlur  = 16;
-  ctx.fillStyle   = C.food;
+  ctx.shadowColor = 'rgba(255,68,68,0.5)';
+  ctx.shadowBlur = 16;
+  ctx.fillStyle = '#ff4444';
   ctx.beginPath();
   ctx.arc(fx, fy, fRadius, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowBlur  = 0;
+  ctx.shadowBlur = 0;
 
-  // snake body (back to front, so head is always on top)
+  // snake
+  const skinColor = SKINS[settings.skin];
   for (let i = snake.length - 1; i >= 0; i--) {
-    const seg  = snake[i];
+    const seg = snake[i];
     const isHead = i === 0;
-    const t    = i / snake.length;          // 0 = head, 1 = tail
-    const sx   = seg.x * CELL;
-    const sy   = seg.y * CELL;
-    const pad  = isHead ? 1 : 2;
-    const r    = isHead ? 4 : 3;
+    const t = i / snake.length;
+    const sx = seg.x * CELL;
+    const sy = seg.y * CELL;
+    const pad = isHead ? 1 : 2;
+    const r = isHead ? 4 : 3;
 
     if (isHead) {
-      ctx.shadowColor = C.snakeGlow;
-      ctx.shadowBlur  = 12;
-      ctx.fillStyle   = C.snakeH;
+      ctx.shadowColor = skinColor.head;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = skinColor.head + '80';
+      ctx.fillStyle = skinColor.head;
     } else {
-      ctx.shadowBlur  = 0;
-      // fade body from bright green to dim
+      ctx.shadowBlur = 0;
       const alpha = 1 - t * 0.5;
-      ctx.fillStyle   = `rgba(31,184,13,${alpha})`;
+      ctx.fillStyle = skinColor.body + Math.floor(alpha * 255).toString(16).padStart(2, '0');
     }
 
     roundRect(ctx, sx + pad, sy + pad, CELL - pad * 2, CELL - pad * 2, r);
     ctx.fill();
 
-    // eyes on head
     if (isHead) {
       ctx.shadowBlur = 0;
-      ctx.fillStyle  = C.bg;
+      ctx.fillStyle = '#050a05';
       const eyeSize = 3;
-      const eyeOff  = 4;
-      // position eyes based on direction
+      const eyeOff = 4;
       let ex1, ey1, ex2, ey2;
       const cx_ = sx + CELL / 2;
       const cy_ = sy + CELL / 2;
-      if (dir.x === 1)       { ex1 = cx_+3; ey1 = cy_-eyeOff; ex2 = cx_+3; ey2 = cy_+eyeOff; }
+      if (dir.x === 1) { ex1 = cx_+3; ey1 = cy_-eyeOff; ex2 = cx_+3; ey2 = cy_+eyeOff; }
       else if (dir.x === -1) { ex1 = cx_-3; ey1 = cy_-eyeOff; ex2 = cx_-3; ey2 = cy_+eyeOff; }
       else if (dir.y === -1) { ex1 = cx_-eyeOff; ey1 = cy_-3; ex2 = cx_+eyeOff; ey2 = cy_-3; }
-      else                   { ex1 = cx_-eyeOff; ey1 = cy_+3; ex2 = cx_+eyeOff; ey2 = cy_+3; }
+      else { ex1 = cx_-eyeOff; ey1 = cy_+3; ex2 = cx_+eyeOff; ey2 = cy_+3; }
       ctx.beginPath(); ctx.arc(ex1, ey1, eyeSize, 0, Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.arc(ex2, ey2, eyeSize, 0, Math.PI*2); ctx.fill();
     }
   }
 
   ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 function drawDiamond(cx, cy, r) {
@@ -537,9 +803,10 @@ function roundRect(ctx, x, y, w, h, r) {
 // ─────────────────────────────────────────────
 function updateHUD() {
   document.getElementById('score-display').textContent = score;
-  document.getElementById('hi-display').textContent    = hiScore;
+  document.getElementById('hi-display').textContent = hiScore;
   document.getElementById('level-display').textContent = level;
-  document.getElementById('level-badge').textContent   = `LVL ${level}`;
+  document.getElementById('combo-display').textContent = combo;
+  document.getElementById('level-badge').textContent = `LVL ${level}`;
 }
 
 // ─────────────────────────────────────────────
@@ -549,8 +816,8 @@ function gameOver() {
   running = false;
   clearTimeout(loopTimer);
   clearTimeout(bonusTimer);
+  playGameOverSound();
 
-  // draw one last flash
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -558,6 +825,71 @@ function gameOver() {
   document.getElementById('go-score').innerHTML =
     `SCORE&nbsp;&nbsp;${score}<br>BEST&nbsp;&nbsp;&nbsp;${hiScore}`;
   el.classList.remove('hidden');
+}
+
+// ─────────────────────────────────────────────
+//  SETTINGS UI
+// ─────────────────────────────────────────────
+function showSettings() {
+  document.getElementById('settings-menu').classList.add('active');
+  running = false;
+  paused = true;
+}
+
+function hideSettings() {
+  document.getElementById('settings-menu').classList.remove('active');
+  if (running) paused = false;
+}
+
+function toggleSound() {
+  settings.soundEnabled = !settings.soundEnabled;
+  saveSettings();
+  const btn = document.getElementById('sound-toggle');
+  btn.textContent = settings.soundEnabled ? 'ON' : 'OFF';
+  btn.classList.toggle('active');
+}
+
+function toggleParticles() {
+  settings.particlesEnabled = !settings.particlesEnabled;
+  saveSettings();
+  const btn = document.getElementById('particles-toggle');
+  btn.textContent = settings.particlesEnabled ? 'ON' : 'OFF';
+  btn.classList.toggle('active');
+}
+
+function toggleBackground() {
+  settings.backgroundEnabled = !settings.backgroundEnabled;
+  saveSettings();
+  const btn = document.getElementById('bg-toggle');
+  btn.textContent = settings.backgroundEnabled ? 'ON' : 'OFF';
+  btn.classList.toggle('active');
+}
+
+function selectSkin(skinName) {
+  settings.skin = skinName;
+  saveSettings();
+  updateSettingsUI();
+}
+
+function updateSettingsUI() {
+  // Update skin previews
+  const skinsHtml = Object.entries(SKINS).map(([key, skin]) => `
+    <div class="skin-option">
+      <div class="skin-preview ${settings.skin === key ? 'active' : ''}" 
+           style="background: ${skin.head};" 
+           onclick="selectSkin('${key}')" 
+           title="${skin.name}"></div>
+    </div>
+  `).join('');
+  document.getElementById('skin-options').innerHTML = skinsHtml;
+
+  // Update toggles
+  document.getElementById('sound-toggle').textContent = settings.soundEnabled ? 'ON' : 'OFF';
+  document.getElementById('sound-toggle').classList.toggle('active', settings.soundEnabled);
+  document.getElementById('particles-toggle').textContent = settings.particlesEnabled ? 'ON' : 'OFF';
+  document.getElementById('particles-toggle').classList.toggle('active', settings.particlesEnabled);
+  document.getElementById('bg-toggle').textContent = settings.backgroundEnabled ? 'ON' : 'OFF';
+  document.getElementById('bg-toggle').classList.toggle('active', settings.backgroundEnabled);
 }
 
 // ─────────────────────────────────────────────
@@ -571,13 +903,20 @@ const KEY_MAP = {
 };
 
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('settings-menu').classList.contains('active')) {
+      hideSettings();
+    } else {
+      showSettings();
+    }
+    return;
+  }
   if ((e.key === 'p' || e.key === 'P') && running) {
     paused = !paused;
     return;
   }
   const d = KEY_MAP[e.key];
   if (!d) return;
-  // prevent reversing
   if (d.x !== 0 && d.x === -dir.x) return;
   if (d.y !== 0 && d.y === -dir.y) return;
   nextDir = d;
@@ -585,14 +924,14 @@ document.addEventListener('keydown', e => {
 });
 
 // ─────────────────────────────────────────────
-//  INITIAL DRAW (show grid before start)
+//  INIT
 // ─────────────────────────────────────────────
 freshState();
 hiScore = parseInt(localStorage.getItem('snake_hi') || '0');
 updateHUD();
+updateSettingsUI();
 draw();
 
-// Keep food pulsing even on start screen
 setInterval(() => { if (!running) draw(); }, 100);
 </script>
 </body>
